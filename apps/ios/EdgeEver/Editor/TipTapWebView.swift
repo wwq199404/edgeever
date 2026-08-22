@@ -23,7 +23,6 @@ struct TipTapWebView: UIViewRepresentable {
     var onImagePreview: ((_ source: String, _ alt: String) -> Void)? = nil
     var onPickImage: (() -> Void)? = nil
     var onSearchResult: ((_ count: Int, _ index: Int) -> Void)? = nil
-    var onImageExportEvent: (([String: Any]) -> Void)? = nil
     var onBodyReady: (() -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
@@ -56,7 +55,6 @@ struct TipTapWebView: UIViewRepresentable {
                 onImagePreview: onImagePreview,
                 onPickImage: onPickImage,
                 onSearchResult: onSearchResult,
-                onImageExportEvent: onImageExportEvent,
                 onBodyReady: onBodyReady
             )
         )

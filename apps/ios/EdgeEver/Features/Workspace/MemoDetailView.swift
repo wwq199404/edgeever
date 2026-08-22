@@ -14,19 +14,6 @@ struct MemoDetailView: View {
     @State private var memo: MemoDetail?
     @State private var showRevisions = false
     @State private var memoSharePayload: MemoSharePayload?
-    @State private var imageExportSharePayload: MemoImageExportSharePayload?
-    @State private var imageExportMessage: MemoImageExportMessage?
-    @State private var imageExporting = false
-    @State private var imageExportBuffer = MemoImageExportBuffer()
-    @State private var imageShareOptionsOpen = false
-    @State private var imageShareFormat = "png"
-    @State private var imageShareTheme = "slate"
-    @State private var imageShareFontStyle = "serif"
-    @State private var imageShareTitle = true
-    @State private var imageShareNotebook = false
-    @State private var imageShareTags = false
-    @State private var imageShareUpdatedAt = true
-    @State private var imageShareBranding = true
     @State private var error: String?
     @State private var conflictItem: OutboxItem?
     @State private var outboxStatus: OutboxStatus?
@@ -118,90 +105,6 @@ struct MemoDetailView: View {
                 memoSharePayload = nil
             }
         }
-        .sheet(item: $imageExportSharePayload) { payload in
-            ActivityShareView(items: [payload.url]) { _, _, shareError in
-                if let shareError {
-                    imageExportMessage = MemoImageExportMessage(
-                        title: env.preferences.t("导出失败", en: "Export failed"),
-                        message: shareError.localizedDescription
-                    )
-                }
-                imageExportSharePayload = nil
-            }
-        }
-        .sheet(isPresented: $imageShareOptionsOpen) {
-            NavigationStack {
-                Form {
-                    Section(env.preferences.t("主题风格", en: "Theme")) {
-                        Picker(env.preferences.t("主题风格", en: "Theme"), selection: $imageShareTheme) {
-                            Text(env.preferences.t("经典浅色", en: "Light")).tag("slate")
-                            Text(env.preferences.t("极光渐变", en: "Aurora")).tag("aurora")
-                            Text(env.preferences.t("暮色晚霞", en: "Sunset")).tag("sunset")
-                            Text(env.preferences.t("暗夜曜石", en: "Midnight")).tag("midnight")
-                            Text(env.preferences.t("薄荷", en: "Mint")).tag("mint")
-                            Text(env.preferences.t("紫雾流光", en: "Lavender")).tag("lavender")
-                            Text(env.preferences.t("经典便签", en: "Notepad")).tag("notepad")
-                            Text(env.preferences.t("水墨宣纸", en: "Rice Paper")).tag("xuan")
-                        }
-                        .pickerStyle(.menu)
-                    }
-                    Section(env.preferences.t("字体风格", en: "Typography")) {
-                        Picker(env.preferences.t("字体风格", en: "Typography"), selection: $imageShareFontStyle) {
-                            Text(env.preferences.t("文艺衬线", en: "Serif")).tag("serif")
-                            Text(env.preferences.t("现代无衬线", en: "Sans")).tag("sans")
-                            Text(env.preferences.t("极客等宽", en: "Mono")).tag("mono")
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                    Section(env.preferences.t("显示内容", en: "Content elements")) {
-                        Toggle(env.preferences.t("笔记标题", en: "Note title"), isOn: $imageShareTitle)
-                        Toggle(env.preferences.t("笔记本", en: "Notebook"), isOn: $imageShareNotebook)
-                        Toggle(env.preferences.t("标签", en: "Tags"), isOn: $imageShareTags)
-                        Toggle(env.preferences.t("更新时间", en: "Updated time"), isOn: $imageShareUpdatedAt)
-                        Toggle(env.preferences.t("EdgeEver 品牌标识", en: "EdgeEver branding"), isOn: $imageShareBranding)
-                    }
-                    Section(env.preferences.t("图片格式", en: "Image format")) {
-                        Picker(env.preferences.t("图片格式", en: "Image format"), selection: $imageShareFormat) {
-                            Text(env.preferences.t("PNG · 超清无损", en: "PNG · Best for text")).tag("png")
-                            Text(env.preferences.t("JPEG · 体积小", en: "JPEG · Smaller file")).tag("jpeg")
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                }
-                .navigationTitle(env.preferences.t("分享为图片", en: "Share as image"))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(env.preferences.t("取消", en: "Cancel")) { imageShareOptionsOpen = false }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(env.preferences.t("生成并分享", en: "Generate & Share")) {
-                            guard let memo else { return }
-                            imageShareOptionsOpen = false
-                            exportMemoImage(
-                                memo,
-                                format: imageShareFormat,
-                                theme: imageShareTheme,
-                                fontStyle: imageShareFontStyle,
-                                showTitle: imageShareTitle,
-                                showNotebook: imageShareNotebook,
-                                showTags: imageShareTags,
-                                showUpdatedAt: imageShareUpdatedAt,
-                                showBranding: imageShareBranding
-                            )
-                        }
-                        .disabled(imageExporting || !bodyReady || memo == nil)
-                    }
-                }
-            }
-        }
-        .alert(item: $imageExportMessage) { message in
-            Alert(
-                title: Text(message.title),
-                message: Text(message.message),
-                dismissButton: .default(Text(env.preferences.t("确定", en: "OK")))
-            )
-        }
         .sheet(isPresented: $showAiAssistant) {
             if let memo {
                 AiAssistantSheet(memo: memo) { draft, mode in
@@ -256,22 +159,6 @@ struct MemoDetailView: View {
                 Button(env.preferences.t("分享链接", en: "Share link")) {
                     Task { await shareMemo(memo) }
                 }
-                Button(
-                    imageExporting
-                        ? env.preferences.t("正在导出图片…", en: "Exporting image…")
-                        : env.preferences.t("分享为图片", en: "Share as image")
-                ) {
-                    imageShareOptionsOpen = true
-                }
-                .disabled(imageExporting || !bodyReady)
-                Button(env.preferences.t("高级导出 PNG", en: "Advanced export PNG")) {
-                    exportMemoImage(memo, format: "png")
-                }
-                .disabled(imageExporting || !bodyReady)
-                Button(env.preferences.t("导出 JPEG", en: "Export JPEG")) {
-                    exportMemoImage(memo, format: "jpeg")
-                }
-                .disabled(imageExporting || !bodyReady)
                 Button(
                     isTemporaryMemoId(memo.id)
                         ? env.preferences.t("同步后可复制笔记 ID", en: "Copy note ID after sync")
@@ -714,9 +601,6 @@ struct MemoDetailView: View {
                         searchMatchCount = count
                         searchMatchIndex = index
                     },
-                    onImageExportEvent: { event in
-                        handleImageExportEvent(event)
-                    },
                     onBodyReady: {
                         bodyReady = true
                     }
@@ -937,126 +821,12 @@ struct MemoDetailView: View {
             self.error = error.localizedDescription
         }
     }
-
-    private func exportMemoImage(
-        _ memo: MemoDetail,
-        format: String,
-        theme: String = "slate",
-        fontStyle: String = "serif",
-        showTitle: Bool = true,
-        showNotebook: Bool = false,
-        showTags: Bool = false,
-        showUpdatedAt: Bool = true,
-        showBranding: Bool = true
-    ) {
-        guard !imageExporting, bodyReady else { return }
-        let requestId = UUID().uuidString
-        imageExportBuffer.start(requestId: requestId)
-        imageExporting = true
-        let title = memo.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-        SharedTipTapRuntime.viewer.exportNoteImage(request: [
-            "requestId": requestId,
-            "format": format,
-            "title": title?.isEmpty == false ? title! : env.preferences.t("无标题笔记", en: "Untitled note"),
-            "fallbackTitle": env.preferences.t("无标题笔记", en: "Untitled note"),
-            "notebook": showNotebook ? notebookName(for: memo) : "",
-            "tags": showTags ? memo.tags : [],
-            "updatedAt": showUpdatedAt ? memo.updatedAt : "",
-            "theme": theme,
-            "fontStyle": fontStyle,
-            "showTitle": showTitle,
-            "showNotebook": showNotebook,
-            "showTags": showTags,
-            "showUpdatedAt": showUpdatedAt,
-            "branding": showBranding,
-        ])
-    }
-
-    private func handleImageExportEvent(_ event: [String: Any]) {
-        switch imageExportBuffer.accept(event) {
-        case .none:
-            break
-        case let .failure(message):
-            imageExporting = false
-            imageExportMessage = MemoImageExportMessage(
-                title: env.preferences.t("导出失败", en: "Export failed"),
-                message: message
-            )
-        case let .complete(data, filename):
-            imageExporting = false
-            do {
-                let directory = FileManager.default.temporaryDirectory.appendingPathComponent("EdgeEverNoteExports", isDirectory: true)
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                let safeFilename = (filename as NSString).lastPathComponent
-                let url = directory.appendingPathComponent(safeFilename)
-                try data.write(to: url, options: .atomic)
-                imageExportSharePayload = MemoImageExportSharePayload(url: url)
-            } catch {
-                imageExportMessage = MemoImageExportMessage(
-                    title: env.preferences.t("导出失败", en: "Export failed"),
-                    message: error.localizedDescription
-                )
-            }
-        }
-    }
 }
 
 private struct MemoSharePayload: Identifiable {
     let id = UUID()
     let message: String
     let url: URL
-}
-
-private struct MemoImageExportSharePayload: Identifiable {
-    let id = UUID()
-    let url: URL
-}
-
-private struct MemoImageExportMessage: Identifiable {
-    let id = UUID()
-    let title: String
-    let message: String
-}
-
-private final class MemoImageExportBuffer {
-    enum Result {
-        case none
-        case complete(Data, filename: String)
-        case failure(String)
-    }
-
-    private var requestId: String?
-    private var chunks: [String] = []
-
-    func start(requestId: String) {
-        self.requestId = requestId
-        chunks.removeAll(keepingCapacity: true)
-    }
-
-    func accept(_ event: [String: Any]) -> Result {
-        guard let currentRequestId = requestId,
-              event["requestId"] as? String == currentRequestId,
-              let type = event["type"] as? String
-        else { return .none }
-
-        if type == "imageExportChunk" {
-            if let chunk = event["chunk"] as? String { chunks.append(chunk) }
-            return .none
-        }
-
-        defer {
-            requestId = nil
-            chunks.removeAll(keepingCapacity: false)
-        }
-        if type == "imageExportError" {
-            return .failure(event["message"] as? String ?? "Image export failed")
-        }
-        guard type == "imageExportComplete",
-              let filename = event["filename"] as? String,
-              let data = Data(base64Encoded: chunks.joined())
-        else { return .failure("Image export returned invalid data") }
-        return .complete(data, filename: filename)
-    }
 }
 
 // MARK: - String helper

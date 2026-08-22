@@ -64,12 +64,6 @@ export type ShouldOpenEditorLinkOptions = {
   requireModifier?: boolean;
 };
 
-/** Internal note references are navigation controls, not editable web hyperlinks. */
-export const shouldOpenInternalNoteLink = (
-  event: EditorLinkClick,
-  memoId: string | null
-): boolean => Boolean(memoId) && event.button === 0;
-
 /**
  * Decide whether a primary click should open a navigable editor link.
  * Read-only documents always open on primary click.
